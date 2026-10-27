@@ -26,13 +26,13 @@
 **With Libriax.** Turn on **Public reading card** in your [Libriax](https://libriax.com) settings, then paste this into your profile README:
 
 ```markdown
-[![My reading](https://card.libriax.com/libriax/YOUR_USERNAME)](https://libriax.com)
+[![My reading](https://card.libriax.workers.dev/libriax/YOUR_USERNAME)](https://libriax.com)
 ```
 
 **With Goodreads.** Use the number from your public profile URL (`goodreads.com/user/show/12345678-name`):
 
 ```markdown
-[![My reading](https://card.libriax.com/goodreads/12345678)](https://libriax.com)
+[![My reading](https://card.libriax.workers.dev/goodreads/12345678)](https://libriax.com)
 ```
 
 Libriax cards also show your streak and how far through your book you are.
@@ -45,8 +45,8 @@ To match each visitor's GitHub theme:
 
 ```html
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://card.libriax.com/libriax/YOUR_USERNAME?theme=dark">
-  <img src="https://card.libriax.com/libriax/YOUR_USERNAME" alt="My reading">
+  <source media="(prefers-color-scheme: dark)" srcset="https://card.libriax.workers.dev/libriax/YOUR_USERNAME?theme=dark">
+  <img src="https://card.libriax.workers.dev/libriax/YOUR_USERNAME" alt="My reading">
 </picture>
 ```
 
