@@ -1,0 +1,21 @@
+[package]
+name = "libriax-card"
+version = "0.1.0"
+edition = "2024"
+description = "Live reading cards for your GitHub profile README"
+license = "MIT"
+repository = "https://github.com/libriax/reading-card"
+homepage = "https://libriax.com"
+
+[lib]
+# cdylib is what the Worker runs; rlib lets tests and examples run natively
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+worker = "0.8"
+serde = { version = "1", features = ["derive"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
