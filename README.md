@@ -39,7 +39,7 @@ Libriax cards also show your streak and how far through your book you are.
 
 ## Themes
 
-Add `?theme=dark` or `?theme=libriax` to the image URL. The default is `light`.
+Add `?theme=dark` for the Libriax night palette. The default is the day palette.
 
 To match each visitor's GitHub theme:
 
@@ -84,6 +84,8 @@ Good first contributions: a new theme, a compact layout, a `?hide=` option, or a
 ## Security
 
 Found a vulnerability? Please don't open an issue. See [SECURITY.md](SECURITY.md).
+
+Icons are from [Font Awesome Free](https://fontawesome.com) (CC BY 4.0).
 
 <p align="center">
   <sub>Made by <a href="https://libriax.com">Libriax</a>, the reading tracker for people who like charts.</sub>

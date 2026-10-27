@@ -1,7 +1,7 @@
 //! A Cloudflare Worker that renders reading cards for GitHub READMEs.
 //!
 //! `/libriax/<username>` and `/goodreads/<user id>` return an SVG card;
-//! `?theme=dark` or `?theme=libriax` restyles it. Anything else redirects
+//! `?theme=dark` switches to the night palette. Anything else redirects
 //! to the repo.
 
 pub mod card;
