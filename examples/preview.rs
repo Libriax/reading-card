@@ -5,6 +5,7 @@ use libriax_card::card::{self, Book, Reading, Theme};
 
 fn main() {
     let theme = std::env::args().nth(1).unwrap_or_default();
+    let cover = include_bytes!("../docs/blood-meridian.jpg");
     let reading = Reading {
         name: "Joe".into(),
         year: 2026,
@@ -12,10 +13,10 @@ fn main() {
         pages: 7412,
         streak: Some(12),
         current: Some(Book {
-            title: "The Left Hand of Darkness".into(),
-            author: "Ursula K. Le Guin".into(),
-            cover: None,
-            progress: Some((143, 304)),
+            title: "Blood Meridian".into(),
+            author: "Cormac McCarthy".into(),
+            cover: Some(format!("data:image/jpeg;base64,{}", libriax_card::base64(cover))),
+            progress: Some((143, 355)),
         }),
         last_read: None,
     };
