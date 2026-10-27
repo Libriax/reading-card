@@ -20,6 +20,24 @@ pub struct Reading {
     pub pages: u32,
     pub streak: Option<u32>,
     pub current: Option<Book>,
+    /// Shown instead when nothing is being read right now.
+    #[serde(default)]
+    pub last_read: Option<Book>,
+}
+
+impl Reading {
+    /// The book on the card, with its label.
+    fn shown(&self) -> Option<(&Book, &'static str)> {
+        match (&self.current, &self.last_read) {
+            (Some(book), _) => Some((book, "CURRENTLY READING")),
+            (None, Some(book)) => Some((book, "LAST READ")),
+            (None, None) => None,
+        }
+    }
+
+    pub fn shown_mut(&mut self) -> Option<&mut Book> {
+        self.current.as_mut().or(self.last_read.as_mut())
+    }
 }
 
 #[derive(Deserialize)]
@@ -125,7 +143,7 @@ pub fn render(reading: &Reading, theme: &Theme) -> String {
     let body = format!(
         "{}{}{cards}",
         header(&format!("{}'s reading", reading.name)),
-        book_block(reading.current.as_ref()),
+        book_block(reading.shown()),
     );
     frame(theme, &describe(reading), &body)
 }
@@ -144,7 +162,7 @@ pub fn render_message(message: &str, theme: &Theme) -> String {
 fn frame(theme: &Theme, description: &str, body: &str) -> String {
     let Theme { bg, border, text, muted, card, card_border, badge, badge_border, track } = theme;
     format!(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" aria-labelledby="desc"><title id="desc">{}</title><defs><clipPath id="cover"><rect x="20" y="64" width="60" height="90" rx="3"/></clipPath><clipPath id="logo"><rect x="434" y="20" width="26" height="26" rx="6"/></clipPath><filter id="lift" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity=".08"/></filter><filter id="shelf" x="-40%" y="-30%" width="190%" height="170%"><feDropShadow dx="3" dy="5" stdDeviation="6" flood-opacity=".22"/></filter></defs><style>text{{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;fill:{text}}}.heading,.brand{{font-family:'Playfair Display',Georgia,'Times New Roman',serif;font-weight:700}}.heading{{font-size:20px}}.brand{{font-size:15px}}.label,.stat-label{{font-size:10px;font-weight:600;letter-spacing:.5px}}.title{{font-size:16px;font-weight:700}}.author{{font-size:13px}}.small{{font-size:11px;font-weight:600}}.value{{font-size:20px;font-weight:800}}.label,.stat-label,.author,.small,.muted{{fill:{muted}}}.card{{fill:{card};stroke:{card_border}}}.badge{{fill:{badge};stroke:{badge_border};stroke-width:1.5}}.track{{fill:{track}}}</style><rect x="0.5" y="0.5" width="{}" height="{}" rx="14" fill="{bg}" stroke="{border}"/>{body}</svg>"#,
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" aria-labelledby="desc"><title id="desc">{}</title><defs><clipPath id="cover"><rect x="20" y="64" width="60" height="90" rx="3"/></clipPath><clipPath id="logo"><rect x="434" y="20" width="26" height="26" rx="6"/></clipPath><filter id="lift" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity=".08"/></filter><filter id="shelf" x="-40%" y="-30%" width="190%" height="170%"><feDropShadow dx="3" dy="5" stdDeviation="6" flood-opacity=".22"/></filter></defs><style>text{{font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;fill:{text}}}.heading,.brand{{font-family:'Playfair Display',Georgia,'Times New Roman',serif;font-weight:700}}.heading{{font-size:20px}}.brand{{font-size:15px}}.label,.stat-label{{font-size:10px;font-weight:600;letter-spacing:.5px}}.title{{font-size:16px;font-weight:700}}.author{{font-size:13px}}.small{{font-size:11px;font-weight:600}}.value{{font-size:20px;font-weight:800}}.label,.stat-label,.author,.small,.muted{{fill:{muted}}}.card{{fill:{card};stroke:{card_border}}}.badge{{fill:{badge};stroke:{badge_border};stroke-width:1.5}}.track{{fill:{track}}}.cover-title{{font-size:8px;font-weight:700;fill:#fff}}.cover-author{{font-size:6.5px;font-weight:500;fill:#fff;fill-opacity:.85}}</style><rect x="0.5" y="0.5" width="{}" height="{}" rx="14" fill="{bg}" stroke="{border}"/>{body}</svg>"#,
         esc(description),
         WIDTH - 1,
         HEIGHT - 1,
@@ -159,20 +177,18 @@ fn header(title: &str) -> String {
     )
 }
 
-fn book_block(book: Option<&Book>) -> String {
-    let label = r#"<text x="96" y="78" class="label">CURRENTLY READING</text>"#;
-    let Some(book) = book else {
-        return format!(
-            r#"<rect x="20" y="64" width="60" height="90" rx="3" class="track"/>{label}<text x="96" y="104" class="title muted">Between books</text>"#
-        );
+fn book_block(shown: Option<(&Book, &str)>) -> String {
+    let Some((book, label)) = shown else {
+        return r#"<rect x="20" y="64" width="60" height="90" rx="3" class="track"/><text x="96" y="78" class="label">CURRENTLY READING</text><text x="96" y="104" class="title muted">Between books</text>"#.to_owned();
     };
 
-    let cover = book.cover.as_deref().map_or(String::new(), |uri| {
-        format!(
+    let cover = match book.cover.as_deref() {
+        Some(uri) => format!(
             r#"<image href="{}" x="20" y="64" width="60" height="90" preserveAspectRatio="xMidYMid slice" clip-path="url(#cover)"/>"#,
             esc(uri),
-        )
-    });
+        ),
+        None => fallback_cover(book),
+    };
     let progress = match book.progress {
         Some((read, total)) if total > 0 => {
             let read = read.min(total);
@@ -189,10 +205,60 @@ fn book_block(book: Option<&Book>) -> String {
         _ => String::new(),
     };
     format!(
-        r#"<g filter="url(#shelf)"><rect x="20" y="64" width="60" height="90" rx="3" class="track"/>{cover}</g>{label}<text x="96" y="102" class="title">{}</text><text x="96" y="121" class="author">{}</text>{progress}"#,
+        r#"<g filter="url(#shelf)"><rect x="20" y="64" width="60" height="90" rx="3" class="track"/>{cover}</g><text x="96" y="78" class="label">{label}</text><text x="96" y="102" class="title">{}</text><text x="96" y="121" class="author">{}</text>{progress}"#,
         esc(&fit(&book.title, 364.0, 16.0)),
         esc(&fit(&book.author, 364.0, 13.0)),
     )
+}
+
+/// The app's fallback for books without artwork, as on the newsletter
+/// shelf: a coloured book with a darker spine and the title printed on it.
+/// The colour comes from the title, so a book always gets the same one.
+fn fallback_cover(book: &Book) -> String {
+    const COLOURS: [&str; 8] =
+        ["#4a6cf7", "#0fb9b1", "#a55eea", "#f5a623", "#20bf6b", "#ee5253", "#2d98da", "#8854d0"];
+    let hash = book.title.bytes().fold(0usize, |h, b| h.wrapping_mul(31).wrapping_add(b.into()));
+    let colour = COLOURS[hash % COLOURS.len()];
+    let title: String = wrap(&book.title, 10, 5)
+        .iter()
+        .enumerate()
+        .map(|(i, line)| {
+            format!(r#"<text x="31" y="{}" class="cover-title">{}</text>"#, 79 + i * 10, esc(line))
+        })
+        .collect();
+    format!(
+        r#"<g clip-path="url(#cover)"><rect x="20" y="64" width="60" height="90" fill="{colour}"/><rect x="20" y="64" width="7" height="90" fill="black" fill-opacity=".2"/>{title}<text x="31" y="147" class="cover-author">{}</text></g>"#,
+        esc(&fit(&book.author, 46.0, 6.5)),
+    )
+}
+
+/// Greedy word wrap into lines of at most `width` characters. Text that
+/// needs more than `max_lines` ends with an ellipsis.
+fn wrap(text: &str, width: usize, max_lines: usize) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
+    for word in text.split_whitespace() {
+        match lines.last_mut() {
+            Some(line) if line.chars().count() + 1 + word.chars().count() <= width => {
+                line.push(' ');
+                line.push_str(word);
+            }
+            _ => lines.push(word.to_owned()),
+        }
+    }
+    if lines.len() > max_lines {
+        lines.truncate(max_lines);
+        let kept: String = lines[max_lines - 1].chars().take(width - 1).collect();
+        lines[max_lines - 1] = format!("{}…", kept.trim_end());
+    }
+    lines.iter().map(|line| cut(line, width)).collect()
+}
+
+fn cut(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_owned();
+    }
+    let kept: String = text.chars().take(max_chars.saturating_sub(1)).collect();
+    format!("{}…", kept.trim_end())
 }
 
 /// A stat card with the app's raised icon badge: a white tile whose
@@ -220,9 +286,11 @@ fn progress_colour(fraction: f32) -> String {
 
 /// The alt text: screen readers get the whole card as one sentence.
 fn describe(reading: &Reading) -> String {
-    let current = reading.current.as_ref().map_or("between books".to_owned(), |book| {
-        format!("reading {} by {}", book.title, book.author)
-    });
+    let current = match reading.shown() {
+        Some((book, "LAST READ")) => format!("between books, last read {} by {}", book.title, book.author),
+        Some((book, _)) => format!("reading {} by {}", book.title, book.author),
+        None => "between books".to_owned(),
+    };
     let streak = reading.streak.map_or(String::new(), |days| format!(", {days}-day streak"));
     format!(
         "{} is {current}. {} {} and {} {} in {}{streak}.",
@@ -239,12 +307,7 @@ fn describe(reading: &Reading) -> String {
 /// from an average glyph and long text is cut with an ellipsis.
 // shortcut: assumes Latin-width glyphs, so CJK titles can overflow; measure per script if that bites.
 fn fit(text: &str, max_px: f32, font_px: f32) -> String {
-    let max_chars = (max_px / (font_px * 0.56)) as usize;
-    if text.chars().count() <= max_chars {
-        return text.to_owned();
-    }
-    let cut: String = text.chars().take(max_chars.saturating_sub(1)).collect();
-    format!("{}…", cut.trim_end())
+    cut(text, (max_px / (font_px * 0.56)) as usize)
 }
 
 fn esc(text: &str) -> String {
@@ -297,7 +360,46 @@ mod tests {
                 cover: None,
                 progress: Some((500, 400)),
             }),
+            last_read: None,
         }
+    }
+
+    fn finished(title: &str) -> Option<Book> {
+        Some(Book { title: title.into(), author: "Ann Leckie".into(), cover: None, progress: None })
+    }
+
+    #[test]
+    fn last_read_shows_when_nothing_is_current() {
+        let mut reading = sample(None);
+        reading.current = None;
+        reading.last_read = finished("Ancillary Justice");
+        let svg = render(&reading, Theme::named(""));
+        assert!(svg.contains(">LAST READ<") && svg.contains("Ancillary Justice"));
+        assert!(svg.contains("Joe is between books, last read Ancillary Justice by Ann Leckie."));
+    }
+
+    #[test]
+    fn current_book_wins_over_last_read() {
+        let mut reading = sample(None);
+        reading.last_read = finished("Ancillary Justice");
+        let svg = render(&reading, Theme::named(""));
+        assert!(svg.contains(">CURRENTLY READING<") && !svg.contains("Ancillary"));
+    }
+
+    #[test]
+    fn missing_cover_gets_a_drawn_one() {
+        let svg = render(&sample(None), Theme::named(""));
+        assert!(svg.contains(r#"class="cover-title">Kafka &amp;"#));
+        let other = fallback_cover(&finished("Dune").unwrap());
+        assert_eq!(other, fallback_cover(&finished("Dune").unwrap()));
+    }
+
+    #[test]
+    fn titles_wrap_onto_the_cover() {
+        assert_eq!(wrap("The Left Hand of Darkness", 10, 5), ["The Left", "Hand of", "Darkness"]);
+        assert_eq!(wrap("Supercalifragilistic", 10, 5), ["Supercali…"]);
+        let long = wrap("a b c d e f g h i j k l m n o p q r s t u v w x y z", 3, 2);
+        assert_eq!(long, ["a b", "c…"]);
     }
 
     #[test]

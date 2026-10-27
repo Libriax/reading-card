@@ -83,7 +83,7 @@ async fn goodreads(id: &str) -> Result<Option<Reading>> {
 /// An SVG shown through <img> can't load anything external, so the cover
 /// has to travel inside it. A cover that can't be fetched is just left out.
 async fn embed_cover(reading: &mut Reading) {
-    let Some(book) = reading.current.as_mut() else { return };
+    let Some(book) = reading.shown_mut() else { return };
     book.cover = match book.cover.as_deref() {
         Some(url) => data_uri(url).await,
         None => None,

@@ -17,6 +17,7 @@ fn main() {
             cover: None,
             progress: Some((143, 304)),
         }),
+        last_read: None,
     };
     println!("{}", card::render(&reading, Theme::named(&theme)));
 }

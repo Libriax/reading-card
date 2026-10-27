@@ -21,14 +21,9 @@ pub fn parse(current: &str, read: &str, year: i32) -> Option<Reading> {
     // The channel title reads "Otis 's bookshelf: read".
     let name = text(read, "title")?.split_once("'s bookshelf")?.0.trim().to_owned();
 
-    let current = items(current).next().map(|item| Book {
-        title: text(item, "title").unwrap_or_default().into_owned(),
-        author: text(item, "author_name").unwrap_or_default().into_owned(),
-        cover: text(item, "book_large_image_url")
-            .filter(|url| !url.contains("nophoto"))
-            .map(Cow::into_owned),
-        progress: None,
-    });
+    let current = items(current).next().map(book);
+    // The read feed is sorted newest first, so its top item is the last book finished.
+    let last_read = items(read).next().map(book);
 
     let (books, pages) = items(read)
         .filter(|item| read_year(item) == Some(year))
@@ -37,7 +32,18 @@ pub fn parse(current: &str, read: &str, year: i32) -> Option<Reading> {
             (books + 1, pages + item_pages.unwrap_or(0))
         });
 
-    Some(Reading { name, year, books, pages, streak: None, current })
+    Some(Reading { name, year, books, pages, streak: None, current, last_read })
+}
+
+fn book(item: &str) -> Book {
+    Book {
+        title: text(item, "title").unwrap_or_default().into_owned(),
+        author: text(item, "author_name").unwrap_or_default().into_owned(),
+        cover: text(item, "book_large_image_url")
+            .filter(|url| !url.contains("nophoto"))
+            .map(Cow::into_owned),
+        progress: None,
+    }
 }
 
 fn items(feed: &str) -> impl Iterator<Item = &str> {
@@ -133,6 +139,7 @@ mod tests {
         let book = reading.current.unwrap();
         assert_eq!(book.title, "Galileo's Dream");
         assert_eq!(book.cover.as_deref(), Some("https://i.gr-assets.com/x.jpg"));
+        assert_eq!(reading.last_read.unwrap().title, "A");
     }
 
     #[test]
